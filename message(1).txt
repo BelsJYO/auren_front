@@ -1,0 +1,323 @@
+Perfect ✅ — this is the right step before any coding begins.
+What follows is your complete system architecture and written technical implementation plan for the Auren monorepo — fully consistent with your design flow, APIs, tech stack, and hosting decisions.
+
+⸻
+
+🏗️ Auren — System Architecture & Implementation Plan (Monorepo on GCP)
+
+⸻
+
+🧭 1. Architectural Overview
+
+📦 Monorepo Summary
+
+Auren will be built as a single GitHub repository (auren/) containing:
+	•	A Next.js frontend for the UI, pages, and animations.
+	•	An Express/Next.js API layer for AI requests, checkout, and database actions.
+	•	Shared TypeScript types, utility libraries, and ORM schema in /src/lib and /prisma.
+	•	Deployed as one container on Google Cloud Run, with a single Dockerfile.
+
+⸻
+
+🧩 Core Stack Summary
+
+Layer	Technology	Description
+Frontend	Next.js 14, Chakra UI, Framer Motion, React Three Fiber	Animated, responsive UI with 3D effects and fluid wave background.
+Backend	Node.js (Express in Next.js API routes)	Handles OpenAI & Gemini requests, Stripe checkout, WorkOS auth, and order creation.
+Database	PostgreSQL (Cloud SQL) + Prisma ORM	Stores products, designs, and orders; relational to support multi-item carts.
+Storage	Google Cloud Storage	Saves generated design images and uploaded assets.
+AI APIs	OpenAI (GPT-4o) for chat; Google Vertex AI (Gemini/Imagen 2) for image generation.	
+Authentication	WorkOS	OAuth (Google, Apple) and SSO-ready.
+Payments	Stripe Checkout	Secure payment flow with Stripe webhooks.
+Email / Contact	SendGrid / Nodemailer	Sends confirmation emails and contact form submissions.
+Deployment	Google Cloud Run + Cloud SQL + Cloud Storage	Managed, serverless, scalable deployment.
+
+
+⸻
+
+🧠 2. Data Flow: System Architecture Diagram
+
+                  ┌────────────────────────────┐
+                  │        Browser (UI)        │
+                  │  Next.js + Chakra + R3F    │
+                  │  (Chat, Canvas, Checkout)  │
+                  └──────────────┬─────────────┘
+                                 │
+                                 ▼
+              ┌────────────────────────────────────┐
+              │  Cloud Run Service: AUREN APP      │
+              │ (Next.js + Express Monorepo)       │
+              ├────────────────────────────────────┤
+              │  /api/chat             → OpenAI GPT │
+              │  /api/generate-image   → Vertex AI   │
+              │  /api/orders           → Cloud SQL   │
+              │  /api/checkout         → Stripe API  │
+              │  /api/auth             → WorkOS Auth │
+              │  /api/contact          → SendGrid    │
+              │  /api/sheets           → Google Sheet│
+              └──────────┬──────────────────────────┘
+                         │
+     ┌───────────────────┼─────────────────────────────────┐
+     ▼                   ▼                                 ▼
+[Cloud SQL]        [Cloud Storage]                 [External APIs]
+(PostgreSQL DB)    (designs, uploads)          OpenAI / Gemini / Stripe / WorkOS
+
+     ▲
+     │ Stripe Webhook: checkout.session.completed
+     │
+     ▼
+ Cloud Run Webhook Handler → writes Order → Appends Google Sheet → Sends Email
+
+
+⸻
+
+🧾 3. API Endpoint Plan
+
+Endpoint	Method	Description	External APIs
+/api/chat	POST	Sends user message to OpenAI (GPT-4o) and returns chat reply.	OpenAI
+/api/generate-image	POST	Sends prompt + optional image to Gemini Image API; returns image URL.	Vertex AI
+/api/orders/draft	POST	Creates order draft in DB (before checkout).	Cloud SQL
+/api/orders/assistant	POST	Conversational parsing for size/quantity using OpenAI; updates draft.	OpenAI
+/api/checkout/session	POST	Creates Stripe Checkout session for final payment.	Stripe
+/api/webhooks/stripe	POST	Webhook receiver for Stripe payment events.	Stripe
+/api/auth/login	GET	Redirect to WorkOS for OAuth login.	WorkOS
+/api/auth/callback	GET	WorkOS OAuth callback; sets session.	WorkOS
+/api/contact	POST	Handles “Contact Us” form → SendGrid/Nodemailer.	SendGrid
+/api/sheets/append	POST	Adds completed order to Google Sheet.	Google Sheets
+
+
+⸻
+
+🧮 4. Database Schema (Cloud SQL - PostgreSQL)
+
+-- USERS
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  name TEXT,
+  provider TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- PRODUCTS (catalog)
+CREATE TABLE products (
+  id SERIAL PRIMARY KEY,
+  name TEXT,
+  category TEXT,
+  base_price_cents INT,
+  image_url TEXT
+);
+
+-- DESIGNS
+CREATE TABLE designs (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id),
+  product_id INT REFERENCES products(id),
+  final_image_url TEXT,
+  layers JSONB,
+  color TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ORDERS
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id),
+  subtotal_cents INT,
+  total_cents INT,
+  currency TEXT DEFAULT 'USD',
+  status TEXT DEFAULT 'draft',
+  email TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  paid_at TIMESTAMP
+);
+
+-- ORDER ITEMS
+CREATE TABLE order_items (
+  id SERIAL PRIMARY KEY,
+  order_id INT REFERENCES orders(id),
+  product_id INT REFERENCES products(id),
+  design_id INT REFERENCES designs(id),
+  quantity INT,
+  unit_price_cents INT
+);
+
+-- ORDER SIZES
+CREATE TABLE order_sizes (
+  id SERIAL PRIMARY KEY,
+  order_item_id INT REFERENCES order_items(id),
+  size TEXT,
+  quantity INT
+);
+
+
+⸻
+
+🧩 5. Frontend ↔ Backend Communication Plan
+
+Frontend Page	API Calls	Purpose
+Page 1: Landing	—	Static content; optional /catalog for featured products.
+Page 2: Action Selection	—	Choose Catalog (→3a) or Custom (→3b).
+Page 3a: Catalog	GET /catalog, POST /generate-image, POST /chat	Fetch product, design, and AI suggestions.
+Page 3b: Custom	POST /chat, POST /generate-image	Conversational AI design flow.
+Page 5: Quantity	POST /orders/draft, POST /orders/assistant	Interactive quantity and sizing.
+Page 6: Summary	GET /orders/:id	Review variations, login to checkout.
+Page 7: Checkout	POST /checkout/session	Initiate Stripe payment.
+Page 8: Confirmation	—	Display thank-you + optional tracking.
+
+
+⸻
+
+🧰 6. GCP Infrastructure Plan
+
+Component	GCP Service	Description
+App Container	Cloud Run	Single container with Next.js + Express API.
+Database	Cloud SQL (PostgreSQL)	Stores users, products, designs, orders.
+Assets	Cloud Storage	Holds uploaded files and generated images.
+Image Generation	Vertex AI (Gemini/Imagen)	Handles image synthesis requests.
+Secrets	Secret Manager	Stores API keys securely (OpenAI, Stripe, WorkOS).
+Logs & Metrics	Cloud Logging + Cloud Monitoring	Centralized logs and alerts.
+Email/Notifications	SendGrid / Pub/Sub Trigger	Sends confirmation or contact emails.
+
+
+⸻
+
+🔐 7. Authentication & Authorization Flow
+
+[User clicks “Continue with Google”]
+      │
+      ▼
+[WorkOS OAuth Redirect] ───→ User consents
+      │
+      ▼
+[WorkOS callback → /api/auth/callback]
+      │
+      ▼
+[App verifies + sets session cookie]
+      │
+      ▼
+[Frontend updates UI with logged-in user context]
+
+	•	Session stored in secure JWT (httpOnly cookie).
+	•	Token contains: user ID, email, provider.
+	•	Used for /api/orders and /api/checkout authorization.
+
+⸻
+
+💳 8. Payment Flow (Stripe Integration)
+
+Frontend (Page 7)
+  │
+  ├── POST /api/checkout/session
+  │        body: { orderDraftId, email, address }
+  │
+  ▼
+Express Backend → Stripe SDK
+  │
+  ├── Creates Checkout Session
+  └── Returns session.url → redirect user
+
+[User completes payment on Stripe]
+
+Stripe → POST /webhooks/stripe
+  │
+  ├── Verify signature
+  ├── Mark order as PAID in Cloud SQL
+  ├── Append order row to Google Sheets
+  └── Send confirmation email
+
+
+⸻
+
+🤖 9. AI Integration Flow
+
+Type	Model	Endpoint	Description
+Chatbot	gpt-4o (OpenAI)	/api/chat	Natural conversation for design customization.
+Design Assistant	gpt-4o-mini	/api/orders/assistant	Parses size/quantity comments from user chat.
+Image Generator	Gemini Image (Vertex AI)	/api/generate-image	Creates product mockups from text + uploaded images.
+
+
+⸻
+
+🧠 10. Order Data Sync (Google Sheets Integration)
+	•	When an order is marked as PAID, the backend automatically:
+	1.	Fetches order, items, total, and user details.
+	2.	Formats as a row (CSV-style):
+
+OrderID | Date | UserEmail | ProductName | Quantity | Sizes | Total | Status
+
+
+	3.	Calls Google Sheets API:
+
+POST /api/sheets/append
+
+→ Appends to a team-accessible sheet for ops.
+
+⸻
+
+🧩 11. Security Plan
+
+Concern	Mitigation
+API keys exposure	Store all keys in GCP Secret Manager.
+User sessions	Use httpOnly, SameSite=Strict cookies.
+CORS	Not required (frontend + API same origin).
+File uploads	Validate MIME types before upload to Cloud Storage.
+Payment webhooks	Verify Stripe signature using stripe.webhooks.constructEvent.
+AI prompt injection	Pre-sanitize text input before sending to OpenAI.
+Rate limiting	Add lightweight in-memory limiter (e.g., express-rate-limit).
+
+
+⸻
+
+🧩 12. DevOps Plan (GitHub → GCP)
+
+Stage	Tool	Description
+CI/CD	GitHub Actions	Lint, test, and build before deploy.
+Deployment	gcloud run deploy	Automated via CI/CD YAML.
+Environment management	.env.local (dev) + Secret Manager (prod).	
+Monitoring	Cloud Monitoring + Slack alerts (optional).	
+Backup	Cloud SQL automated snapshots + GCS retention.	
+
+
+⸻
+
+🧩 13. Initial Development Milestones
+
+Phase	Goal	Key Deliverable
+Phase 1	Setup Monorepo + Next.js UI	Landing Page + Action Selection (Pages 1–2)
+Phase 2	Catalog + Custom Flows	Pages 3a–3b, Chat & Image APIs
+Phase 3	Order + Checkout Flow	Pages 5–7 + Stripe Integration
+Phase 4	Confirmation + Sheets	Page 8 + Google Sheets Append
+Phase 5	Production Deployment	Cloud Run deploy + domain + SSL
+
+
+⸻
+
+🧩 14. System Summary (End-to-End Flow)
+
+1️⃣ User visits Landing (Page 1)
+2️⃣ Chooses Catalog or Custom (Page 2)
+3️⃣ Designs product (Page 3a or 3b)
+4️⃣ Sets quantity via AI chat (Page 5)
+5️⃣ Reviews & logs in (Page 6)
+6️⃣ Pays via Stripe (Page 7)
+7️⃣ Payment confirmed (Webhook)
+8️⃣ Order stored in Postgres + appended to Sheets
+9️⃣ User sees Thank You page (Page 8)
+
+
+⸻
+
+✅ In short:
+You’ll launch Auren as a Next.js monorepo on GCP Cloud Run, powered by:
+	•	OpenAI (chat) + Gemini (images)
+	•	WorkOS (auth)
+	•	Stripe (payments)
+	•	Cloud SQL (orders)
+	•	Sheets (logging)
+
+Everything runs under one deployable container now — and can be modularized later without rewriting.
+
+⸻
+
+Would you like me to now generate the architecture diagram (visual) in Mermaid format (so you can paste it directly into your README or Notion)? It will show every system component, API call, and data flow (frontend → backend → AI → DB → Sheets).
