@@ -21,6 +21,13 @@ const config: Config = {
           beige: '#f5f1e8',
           navy: '#1a1a1a',
         },
+        'how-it-works': {
+          'tan': '#D4C7B4',
+          'light-gray': '#F4F4F6',
+          'cream': '#E5DED4',
+          'light-blue': '#E4EEF0',
+          'peach': '#F5DFD4',
+        }
       },
       backdropBlur: {
         xs: '2px',
