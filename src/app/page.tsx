@@ -61,22 +61,11 @@ export default function Home() {
             transition={{ duration: 0.6, delay: 0.5 }}
             className="flex gap-4 justify-center"
           >
-            <button 
-              onClick={() => {
-                console.log('Get Started clicked!');
-                const element = document.getElementById('content');
-                console.log('Content element:', element);
-                if (element) {
-                  element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                } else {
-                  // Fallback: scroll by window height
-                  window.scrollTo({ top: window.innerHeight, behavior: 'smooth' });
-                }
-              }}
-              className="px-12 py-4 text-white text-base font-light bg-white/10 backdrop-blur-xl border border-white/20 rounded-full hover:bg-white/15 transition-all duration-300"
-            >
-              Get Started
-            </button>
+            <Link href="/get-started">
+              <button className="px-12 py-4 text-white text-base font-light bg-white/10 backdrop-blur-xl border border-white/20 rounded-full hover:bg-white/15 transition-all duration-300">
+                Get Started
+              </button>
+            </Link>
             <button 
               onClick={() => setShowContactForm(true)}
               className="px-12 py-4 text-white text-base font-light bg-white/10 backdrop-blur-xl border border-white/20 rounded-full hover:bg-white/15 transition-all duration-300"
@@ -275,7 +264,7 @@ export default function Home() {
                   <span>Lower minimums</span>
                 </li>
               </ul>
-              <Link href="/catalog" className="block">
+              <Link href="/get-started" className="block">
                 <button className="w-full bg-auren-black text-white py-4 rounded-full hover:bg-auren-black/90 transition-colors">
                   Get Started
                 </button>
@@ -312,7 +301,7 @@ export default function Home() {
                   <span>Expert guidance</span>
                 </li>
               </ul>
-              <Link href="/custom" className="block">
+              <Link href="/get-started" className="block">
                 <button className="w-full bg-white text-auren-tan py-4 rounded-full hover:bg-white/90 transition-colors">
                   Get Started
                 </button>
@@ -336,9 +325,11 @@ export default function Home() {
           <h2 className="text-6xl md:text-8xl font-light text-white mb-12">
             Make With Auren
           </h2>
-          <button className="px-16 py-5 text-white text-lg font-light bg-white/10 backdrop-blur-xl border border-white/20 rounded-full hover:bg-white/15 transition-all duration-300">
-            Get Started
-          </button>
+          <Link href="/get-started">
+            <button className="px-16 py-5 text-white text-lg font-light bg-white/10 backdrop-blur-xl border border-white/20 rounded-full hover:bg-white/15 transition-all duration-300">
+              Get Started
+            </button>
+          </Link>
         </motion.div>
       </section>
 

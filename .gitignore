@@ -1,34 +1,40 @@
-# dependencies
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Dependencies
 /node_modules
 /.pnp
 .pnp.js
 
-# testing
+# Testing
 /coverage
 
-# next.js
+# Next.js build output
 /.next/
 /out/
 
-# production
+# Production
 /build
 
-# misc
+# Miscellaneous
 .DS_Store
 *.pem
 
-# debug
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
+# Local environment variables
 .env*.local
 
-# vercel
-.vercel
-
-# typescript
+# TypeScript cache
 *.tsbuildinfo
 next-env.d.ts
 
+# Editor-specific files
+.vscode
+.idea
+.cursor
+
+# Gradle cache (from previous errors)
+.gradle
