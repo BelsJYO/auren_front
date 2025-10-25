@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import { useRef, useEffect, useState } from 'react'
 import { Footer } from '@/components/Footer'
 import { Navigation } from '@/components/Navigation'
+import Link from 'next/link'
+import Image from 'next/image'
 
 export default function GetStarted() {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -151,24 +153,24 @@ export default function GetStarted() {
         </div>
       </section>
 
-      {/* "Start Making" Section with Video Background */}
+      {/* "Start Making" Section with Image */}
       <section className="relative h-screen bg-black">
-        <video 
-          className="absolute top-0 left-0 w-full h-full object-cover z-10"
-          playsInline
-          muted
-          autoPlay
-          loop
-          preload="metadata"
-        >
-          <source src="/create video.mp4" type="video/mp4" />
-        </video>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 z-10 pointer-events-none">
+          <Image
+            src="/Gemini_Generated_Image_omrzreomrzreomrz.png"
+            alt="Abstract 3D object"
+            fill
+            className="object-contain"
+          />
+        </div>
         
         {/* Clickable Overlay with a text-less button */}
         <div className="absolute inset-0 z-30 flex items-center justify-center cursor-pointer">
-          <button className="rounded-full bg-white/10 px-8 py-4 text-lg font-semibold text-white shadow-lg ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-white/20">
-            {/* Text has been removed */}
-          </button>
+          <Link href="/catalog">
+            <button className="rounded-full bg-white/10 px-8 py-4 text-lg font-semibold text-white shadow-lg ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-white/20">
+              Start Making
+            </button>
+          </Link>
         </div>
       </section>
 
@@ -183,7 +185,7 @@ export default function GetStarted() {
           loop
           preload="metadata"
         >
-          <source src="/auren_3d_visual.mp4" type="video/mp4" />
+          <source src="/auren_3d_rotate_cube.mp4" type="video/mp4" />
         </video>
 
         {/* Overlay Content */}
